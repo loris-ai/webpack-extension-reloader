@@ -7,13 +7,14 @@
 /* -------------------------------------------------- */
 (function() {
   try{window}catch{var window:any;}
+  
+  const injectionContext = window || this || {browser: null};
 
-  const injectionContext = {browser: null};
   (function() {
     `<%= polyfillSource %>`;
   }).bind(injectionContext)();
 
-  const { browser }: any = injectionContext;
+  const { browser }: any = injectionContext || {};
   const signals: any = JSON.parse('<%= signals %>');
   const config: any = JSON.parse('<%= config %>');
 
@@ -28,7 +29,7 @@
   } = signals;
   const { RECONNECT_INTERVAL, SOCKET_ERR_CODE_REF } = config;
 
-  const { extension, runtime, tabs } = browser;
+  const { extension, runtime, tabs } = browser || {};
   const manifest = runtime.getManifest();
 
   // =============================== Helper functions ======================================= //
@@ -39,9 +40,10 @@
 
   // ========================== Called only on content scripts ============================== //
   function contentScriptWorker() {
+    console.log('contentScriptWorker')
     runtime.sendMessage({ type: SIGN_CONNECT }).then(msg => console.info(msg));
 
-    runtime.onMessage.addListener(({ type, payload }: IAction) => {
+    runtime.onMessage.addListener(({ type, payload }: { type: string; payload: any }) => {
       switch (type) {
         case SIGN_RELOAD:
           logger("Detected Changes. Reloading ...");
@@ -57,7 +59,7 @@
 
   // ======================== Called only on background scripts ============================= //
   function backgroundWorker(socket: WebSocket) {
-    runtime.onMessage.addListener((action: IAction, sender) => {
+    runtime.onMessage.addListener((action: { type: string; payload: any }, sender) => {
       if (action.type === SIGN_CONNECT) {
         return Promise.resolve(formatter("Connected to Extension Hot Reloader"));
       }
@@ -115,7 +117,7 @@
   function extensionPageWorker() {
     runtime.sendMessage({ type: SIGN_CONNECT }).then(msg => console.info(msg));
 
-    runtime.onMessage.addListener(({ type, payload }: IAction) => {
+    runtime.onMessage.addListener(({ type, payload }: { type: string; payload: any }) => {
       switch (type) {
         case SIGN_CHANGE:
           logger("Detected Changes. Reloading ...");
